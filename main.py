@@ -1,6 +1,6 @@
 import pygame, random, json, sys
 
-class Game():
+class Game(pygame.sprite.Sprite):
 	rects = []
 	rect_styles = [
 		"normal",
@@ -11,11 +11,37 @@ class Game():
 		"normal",
 		"normal",
 		"normal",
+		"normal",
+		"normal",
+		"normal",
+		"normal",
 		"death",
-		"death"
+		"death",
+		"death",
+		"death",
+		"death",
+		"item"
 	] #80% normal 20% death
 
+	possible_powerups=[
+		"Leben",
+		"5P",
+	]
+
+	#region load image powerups
+	leben = pygame.image.load('sprites/Leben.png')
+	fuenfP = pygame.image.load('sprites/5P.png')
+	Tile = pygame.image.load('sprites/Tile.png')
+	apfel = pygame.image.load('sprites/Apfel.png')
+	#endregion
+
 	circles = []
+
+	def __init__(self):
+		pygame.sprite.Sprite.__init__(self)
+		self.image = pygame.Surface((50, 50))
+		self.image.fill((0, 0, 0))
+		self.rect = self.image.get_rect()
 
 	def draw_new_tile(self):
 		row = (random.randint(1, 4)*100)-20
@@ -24,7 +50,13 @@ class Game():
 
 		random_style = self.rect_styles[random.randint(0, len(self.rect_styles)-1)]
 
-		self.rects.append([row, 0, random_style])
+		if random_style == "item":
+			powerup = random.choice(self.possible_powerups)
+			self.rects.append(PowerUp.spawn(PowerUp, row, pygame.image.load(f'sprites/{powerup}.png'), powerup))
+		elif random_style == "death":
+			self.rects.append([row, 0, random_style, self.apfel])
+		else:
+			self.rects.append([row, 0, random_style, self.Tile])
 
 	def update_tiles(self):
 		for rect in self.rects:
@@ -33,24 +65,29 @@ class Game():
 				shape = pygame.Rect(rect[0], rect[1], 40, 40)
 
 				# if rect[2] == "normal" or screen_height-300 < rect[1] < screen_height-290 or screen_height-280 < rect[1] < screen_height-270 or screen_height-260 < rect[1] < screen_height-250 or rect[1] > screen_height-240:
-				if rect[2] == "normal" or screen_height-300 < rect[1]:
-					pygame.draw.rect(screen, TILES, shape, 0)
+				if rect[2] == "death":
+					if screen_height-300 < rect[1] and rect[3] == self.apfel:
+						rect[3] = self.Tile
+					screen.blit(rect[3], [rect[0], rect[1]])
 				else:
-					pygame.draw.rect(screen, DEATH_TILES, shape, 0)
+					screen.blit(rect[3], [rect[0], rect[1]])
 				
 			else: 
 				if rect[2] == "death":
 					self.rects.remove(rect)
-				else:
+				elif rect[2] == "normal":
 					shape = pygame.Rect(rect[0], rect[1]-40, 40, 40)
 					pygame.draw.rect(screen, TILES, shape, 0)
-					end_game()
+					player.damage()
+					self.rects.remove(rect)
+				elif rect[2] == "PowerUp":
+					self.rects.remove(rect)
 		
 		for circle in self.circles:
 			if circle[2] > 50:
 				self.circles.remove(circle)
 			
-			pygame.draw.circle(screen, TILES, (circle[0], circle[1]), circle[2], 3)
+			pygame.draw.circle(screen, circle[3], (circle[0], circle[1]), circle[2], 3)
 
 			# make circle grow exponentially
 			if circle[2] > 40:
@@ -69,24 +106,40 @@ class Game():
 					if rect[2] == "normal":
 						audio.play(random.choice(audio.collect))
 						self.rects.remove(rect)
-						self.circles.append([rect[0]+20, rect[1]+20, 10])
+						self.circles.append([rect[0]+20, rect[1]+20, 10, TILES])
 						return True
-					else:
+					elif rect[2] == "death":
 						# draw red square when collided
 						self.rects.remove(rect)
 						shape = pygame.Rect(rect[0], rect[1], 40, 40)
 						pygame.draw.rect(screen, DEATH_TILES, shape, 0)
-						end_game()
+						player.damage()
+
+					elif rect[2] == "PowerUp":
+						if rect[4] == "Leben":
+							player.add_health()
+							audio.play(random.choice(audio.collect))
+							self.circles.append([rect[0]+20, rect[1]+20, 10, LEBEN])
+						if rect[4] == "5P":
+							player.score += 5
+							audio.play(random.choice(audio.collect))
+							self.circles.append([rect[0]+20, rect[1]+20, 10, (0, 0, 0)])
+						self.rects.remove(rect)
 		
 		return False
 
-class Player():
+class Player(pygame.sprite.Sprite):
 	score = 0
+	leben = 1
+
+	player = pygame.image.load('sprites/Player.png')
 
 	def draw_player(self, player_pos):
+		if self.leben == 0:
+			end_game()
 		x_axis = min(player_pos, screen_width-40)
 		rect = pygame.Rect(x_axis, 650, 40, 40)
-		pygame.draw.rect(screen, PLAYER, rect, 0)
+		screen.blit(self.player, [rect[0], rect[1]])
 
 		#check collision
 		if game.check_collision(rect) is not False:
@@ -95,6 +148,16 @@ class Player():
 
 	def get_mouse_position(self):
 		return pygame.mouse.get_pos()[0]
+	
+	def damage(self):
+		self.leben -= 1
+	
+	def add_health(self):
+		if self.leben < 3:
+			self.leben += 1
+	
+	def reset(self):
+		self.leben = 1
 
 class Audio():
 	def __init__(self):
@@ -124,6 +187,15 @@ class Settings():
 			f.truncate()
 		return True
 
+class PowerUp():
+	name = ""
+
+	def __init__(self, name):
+		self.name = name
+
+	def spawn(self, row, img, name):
+		return [row, 0, "PowerUp", img, name]
+
 #region load settings
 with open("./settings.json") as f:
 	settings = json.load(f)
@@ -151,6 +223,7 @@ mode = settings["mode"]
 pygame.init()
 pygame.font.init()
 pygame.mixer.init()
+pygame.display.init()
 pygame.display.set_caption("Cool Game")
 screen = pygame.display.set_mode([screen_width, screen_height])
 
@@ -176,7 +249,7 @@ player = Player()
 audio = Audio()
 setting = Settings(settings)
 
-Highscore = int(settings["Highscore" + settings["mode"]])
+Highscore = int(settings["Highscore"])
 Highscore_scored = False
 
 display_score = f"Punkte: {player.score}"
@@ -184,24 +257,29 @@ display_score = f"Punkte: {player.score}"
 
 #region colors
 # Colors https://lospec.com/palette-list/lagoon
-try:
-    for color in colors:
-        if color["name"] == "Hintergrund":
-            BACKGROUND = tuple(map(int, color["farbe"].split(', ')))
-        elif color["name"] == "Spieler":
-            TILES = tuple(map(int, color["farbe"].split(', ')))
-        elif color["name"] == "Teile":
-            PLAYER = tuple(map(int, color["farbe"].split(', ')))
-        elif color["name"] == "Todes_Teile":
-            DEATH_TILES = tuple(map(int, color["farbe"].split(', ')))
+LEBEN = (248, 134, 149)
+PLAYER = (51, 47, 53)
+TILES = (74, 122, 150)
+DEATH_TILES = (255, 115, 107)
+BACKGROUND = (251, 240, 237)
+# try:
+#     for color in colors:
+#         if color["name"] == "Hintergrund":
+#             BACKGROUND = tuple(map(int, color["farbe"].split(', ')))
+#         elif color["name"] == "Spieler":
+#             TILES = tuple(map(int, color["farbe"].split(', ')))
+#         elif color["name"] == "Teile":
+#             PLAYER = tuple(map(int, color["farbe"].split(', ')))
+#         elif color["name"] == "Todes_Teile":
+#             DEATH_TILES = tuple(map(int, color["farbe"].split(', ')))
 
-    #try colors
-    pygame.draw.circle(screen, PLAYER, (0, 0), 0)
-    pygame.draw.circle(screen, TILES, (0, 0), 0)
-    pygame.draw.circle(screen, DEATH_TILES, (0, 0), 0)
-    pygame.draw.circle(screen, BACKGROUND, (0, 0), 0)
-except Exception as e:
-    exit("Something is wrong with your color scheme!")
+#     #try colors
+#     pygame.draw.circle(screen, PLAYER, (0, 0), 0)
+#     pygame.draw.circle(screen, TILES, (0, 0), 0)
+#     pygame.draw.circle(screen, DEATH_TILES, (0, 0), 0)
+#     pygame.draw.circle(screen, BACKGROUND, (0, 0), 0)
+# except Exception as e:
+#     exit("Something is wrong with your color scheme!")
 #endregion
 
 def end_game():
@@ -218,7 +296,7 @@ def end_game():
 		# play winning score
 		audio.play(audio.winning)
 		# write new highscore in json file
-		setting.change_setting("Highscore" + settings["mode"], player.score)
+		setting.change_setting("Highscore", player.score)
 
 game.draw_new_tile()
 
@@ -265,6 +343,9 @@ while running:
 		#draw players Score
 		score_txt = font.render(display_score, True, (0, 0, 0))
 		screen.blit(score_txt, [10, 10])
+
+		score_txt = font.render("Leben: " + str(player.leben), True, (0, 0, 0))
+		screen.blit(score_txt, [10, 40])
 	
 	elif game_state == "lost":
 		for event in pygame.event.get():
@@ -281,6 +362,7 @@ while running:
 					speed = 5
 					interval = 250
 					game_state = "playing"
+					player.reset()
 					game.draw_new_tile()
 		
 		#region draw text

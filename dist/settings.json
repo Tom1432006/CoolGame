@@ -1,0 +1,24 @@
+{
+    "Farben_Thema": "Standart",
+    "Standart": [
+        {
+            "name": "Hintergrund",
+            "farbe": "255, 237, 212"
+        },
+        {
+            "name": "Spieler",
+            "farbe": "38, 121, 142"
+        },
+        {
+            "name": "Teile",
+            "farbe": "99, 202, 167"
+        },
+        {
+            "name": "Todes_Teile",
+            "farbe": "255, 115, 107"
+        }
+    ],
+    "Max_Geschwindigkeit": 8,
+    "Highscore": 83,
+    "mode": "Maus"
+}

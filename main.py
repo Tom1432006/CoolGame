@@ -1,4 +1,5 @@
 import pygame, random, json, sys
+import math
 
 class Game(pygame.sprite.Sprite):
 	rects = []
@@ -151,6 +152,7 @@ class Player(pygame.sprite.Sprite):
 	
 	def damage(self):
 		self.leben -= 1
+		audio.play(audio.death)
 	
 	def add_health(self):
 		if self.leben < 3:
@@ -167,7 +169,11 @@ class Audio():
 			pygame.mixer.Sound("audio/pickupCoin (2).wav")
 			]
 		self.death = pygame.mixer.Sound("audio/hitHurt.wav")
-		self.winning = pygame.mixer.Sound("audio\level-win-6416.wav")
+		self.winning = [
+			pygame.mixer.Sound("audio\level-win-6416.wav"),
+			pygame.mixer.Sound("audio\winning2.wav"),
+			pygame.mixer.Sound("audio\winning3.wav")
+		]
 	
 	def play(self, audio):
 		pygame.mixer.Sound.play(audio)
@@ -199,12 +205,6 @@ class PowerUp():
 #region load settings
 with open("./settings.json") as f:
 	settings = json.load(f)
-
-color_scheme = settings["Farben_Thema"]
-try:
-	colors = settings[color_scheme]
-except Exception as e:
-	exit("Dieses Farben Thema gibt es nicht")
 
 possible_modes = ["Maus", "Tasten"]
 if settings["mode"] not in possible_modes:
@@ -240,6 +240,7 @@ max_speed = int(settings["Max_Geschwindigkeit"])
 min_interval = 150
 speed_increment = .15
 interval_increment = 4
+tiles = 0
 
 running = True
 game_state = "playing"
@@ -262,39 +263,22 @@ PLAYER = (51, 47, 53)
 TILES = (74, 122, 150)
 DEATH_TILES = (255, 115, 107)
 BACKGROUND = (251, 240, 237)
-# try:
-#     for color in colors:
-#         if color["name"] == "Hintergrund":
-#             BACKGROUND = tuple(map(int, color["farbe"].split(', ')))
-#         elif color["name"] == "Spieler":
-#             TILES = tuple(map(int, color["farbe"].split(', ')))
-#         elif color["name"] == "Teile":
-#             PLAYER = tuple(map(int, color["farbe"].split(', ')))
-#         elif color["name"] == "Todes_Teile":
-#             DEATH_TILES = tuple(map(int, color["farbe"].split(', ')))
-
-#     #try colors
-#     pygame.draw.circle(screen, PLAYER, (0, 0), 0)
-#     pygame.draw.circle(screen, TILES, (0, 0), 0)
-#     pygame.draw.circle(screen, DEATH_TILES, (0, 0), 0)
-#     pygame.draw.circle(screen, BACKGROUND, (0, 0), 0)
-# except Exception as e:
-#     exit("Something is wrong with your color scheme!")
 #endregion
 
 def end_game():
 	global game_state
 	global Highscore_scored
 	global Highscore
+	global tiles
+	tiles = 0
 	game_state = "lost"
 
-	audio.play(audio.death)
 	if player.score >= Highscore:
 		Highscore_scored = True
 		Highscore = player.score
 
 		# play winning score
-		audio.play(audio.winning)
+		audio.play(random.choice(audio.winning))
 		# write new highscore in json file
 		setting.change_setting("Highscore", player.score)
 
@@ -332,10 +316,13 @@ while running:
 
 		if game.rects[len(game.rects)-1][1] > interval:
 			game.draw_new_tile()
+			tiles += 1
 			# decrease spanwing time
 			interval = max(interval - interval_increment, min_interval)
 			# up speed
-			speed = min(speed + speed_increment, max_speed)
+			speed += speed_increment
+			if speed > max_speed:
+				speed = math.log(tiles+1)*1.5+5
 
 		if game.update_tiles() == False:
 			end_game()
@@ -367,10 +354,10 @@ while running:
 		
 		#region draw text
 		txt = font.render("Q zum schließen", True, (0, 0, 0))
-		screen.blit(txt, [10, 50])
+		screen.blit(txt, [10, 80])
 
 		txt = font.render("R zum neustarten", True, (0, 0, 0))
-		screen.blit(txt, [10, 90])
+		screen.blit(txt, [10, 120])
 
 		
 		txt = font_L.render(display_score, True, (0, 0, 0))

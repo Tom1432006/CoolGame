@@ -129,6 +129,21 @@ class Game(pygame.sprite.Sprite):
 		
 		return False
 
+	def draw_tiles(self):
+		for rect in self.rects:
+				if rect[2] == "death":
+					if screen_height-300 < rect[1] and rect[3] == self.apfel:
+						rect[3] = self.Tile
+					screen.blit(rect[3], [rect[0], rect[1]])
+				else:
+					screen.blit(rect[3], [rect[0], rect[1]])
+		
+		for circle in self.circles:
+			if circle[2] > 50:
+				self.circles.remove(circle)
+			
+			pygame.draw.circle(screen, circle[3], (circle[0], circle[1]), circle[2], 3)
+
 class Player(pygame.sprite.Sprite):
 	score = 0
 	leben = 1
@@ -297,27 +312,69 @@ def end_game():
 		setting.update_leaderboard(player.score)
 	elif leaderboard[4] < player.score:
 		setting.update_leaderboard(player.score)
-				
 
-game.draw_new_tile()
+def show_statistics():
+	txt = font.render("Q zum schließen", True, (0, 0, 0))
+	screen.blit(txt, [10, 80])
 
-while running:
-	if game_state == "playing":
+	txt = font.render("R zum neustarten", True, (0, 0, 0))
+	screen.blit(txt, [10, 120])
 
-		if mode == "Maus":
-			#hide mouse cursor
-			pygame.mouse.set_cursor((8,8),(0,0),(0,0,0,0,0,0,0,0),(0,0,0,0,0,0,0,0))
-			player_pos = player.get_mouse_position()-20
+	
+	txt = font_L.render(display_score, True, (0, 0, 0))
+	screen.blit(txt, [50, 200])
 
-		for event in pygame.event.get():
-			if event.type == pygame.QUIT:
+
+	if Highscore_scored:
+		txt = font_L.render("Neuer Highscore", True, (0, 0, 0))
+		screen.blit(txt, [50, 260])
+	else:
+		txt = font.render("Highscore: " + str(Highscore), True, (0, 0, 0))
+		screen.blit(txt, [50, 260])
+	
+	
+	txt = font.render("Leaderboard:", True, (0, 0, 0))
+	screen.blit(txt, [50, 420])
+	
+	leaderboard = settings['Leaderboard']
+	for i in range(0, 5):
+		txt = font_s.render(str(i+1) + ": " + str(leaderboard[i]), True, (0,0,0))
+		screen.blit(txt, [50, 455+(i*25)])
+
+def pause_screen():
+	txt = font.render("T für steuerung mit Tasten", True, (0, 0, 0))
+	screen.blit(txt, [10, 50])
+
+	txt = font.render("M für steuerung mit Maus", True, (0, 0, 0))
+	screen.blit(txt, [10, 90])
+
+	txt = font_L.render("Pause", True, (0, 0, 0))
+	screen.blit(txt, [50, 260])
+
+	txt = font_L.render("Steuerung: " + mode, True, (0, 0, 0))
+	screen.blit(txt, [50, 320])
+
+def show_player_score():
+	#draw players Score
+	score_txt = font.render(display_score, True, (0, 0, 0))
+	screen.blit(score_txt, [10, 10])
+
+	score_txt = font.render("Leben: " + str(player.leben), True, (0, 0, 0))
+	screen.blit(score_txt, [10, 40])
+
+def event_handeling():
+	global game_state
+	global mode
+	for event in pygame.event.get():
+		if event.type == pygame.QUIT:
+			pygame.display.quit()
+			pygame.quit(), sys.exit()
+		elif event.type == pygame.KEYDOWN:
+			if event.key == pygame.K_q:
 				pygame.display.quit()
 				pygame.quit(), sys.exit()
-			elif event.type == pygame.KEYDOWN:
-				if event.key == pygame.K_q:
-					pygame.display.quit()
-					pygame.quit(), sys.exit()
 
+			if game_state == "playing":
 				if event.key == pygame.K_ESCAPE:
 					game_state = "paused"
 
@@ -326,6 +383,37 @@ while running:
 						player_pos = max(player_pos-100, 80)
 					elif event.key == pygame.K_RIGHT:
 						player_pos = min(player_pos+100, 380)
+			elif game_state == "lost":
+				if event.key == pygame.K_r:
+					player.score = 0
+					game.rects = []
+					speed = 5
+					interval = 250
+					game_state = "playing"
+					player.reset()
+					game.draw_new_tile()
+			elif game_state == "paused":
+				if event.key == pygame.K_ESCAPE:
+					game_state = "playing"
+				if event.key == pygame.K_t:
+					# mode = Tasten
+					setting.change_setting("mode", "Tasten")
+					mode = "Tasten"
+				elif event.key == pygame.K_m:
+					# mode = Maus
+					setting.change_setting("mode", "Maus")
+					mode = "Maus"
+
+game.draw_new_tile()
+
+while running:
+	event_handeling()
+	if game_state == "playing":
+
+		if mode == "Maus":
+			#hide mouse cursor
+			pygame.mouse.set_cursor((8,8),(0,0),(0,0,0,0,0,0,0,0),(0,0,0,0,0,0,0,0))
+			player_pos = player.get_mouse_position()-20
 
 		display_score = f"Punkte: {player.score}"
 		screen.fill(BACKGROUND)
@@ -344,95 +432,19 @@ while running:
 
 		if game.update_tiles() == False:
 			end_game()
-		
-		#draw players Score
-		score_txt = font.render(display_score, True, (0, 0, 0))
-		screen.blit(score_txt, [10, 10])
-
-		score_txt = font.render("Leben: " + str(player.leben), True, (0, 0, 0))
-		screen.blit(score_txt, [10, 40])
 	
 	elif game_state == "lost":
-		for event in pygame.event.get():
-			if event.type == pygame.QUIT:
-				pygame.display.quit()
-				pygame.quit(), sys.exit()
-			elif event.type == pygame.KEYDOWN:
-				if event.key == pygame.K_q:
-					pygame.display.quit()
-					pygame.quit(), sys.exit()
-				if event.key == pygame.K_r:
-					player.score = 0
-					game.rects = []
-					speed = 5
-					interval = 250
-					game_state = "playing"
-					player.reset()
-					game.draw_new_tile()
-		
-		#region draw text
-		txt = font.render("Q zum schließen", True, (0, 0, 0))
-		screen.blit(txt, [10, 80])
-
-		txt = font.render("R zum neustarten", True, (0, 0, 0))
-		screen.blit(txt, [10, 120])
-
-		
-		txt = font_L.render(display_score, True, (0, 0, 0))
-		screen.blit(txt, [50, 200])
-
-
-		if Highscore_scored:
-			txt = font_L.render("Neuer Highscore", True, (0, 0, 0))
-			screen.blit(txt, [50, 260])
-		else:
-			txt = font.render("Highscore: " + str(Highscore), True, (0, 0, 0))
-			screen.blit(txt, [50, 260])
-		
-		
-		txt = font.render("Leaderboard:", True, (0, 0, 0))
-		screen.blit(txt, [50, 420])
-		
-		leaderboard = settings['Leaderboard']
-		for i in range(0, 5):
-			txt = font_s.render(str(i) + ": " + str(leaderboard[i]), True, (0,0,0))
-			screen.blit(txt, [50, 450+(i*20)])
-		#endregion
-
-	elif game_state == "paused":
-		for event in pygame.event.get():
-			if event.type == pygame.QUIT:
-				pygame.display.quit()
-				pygame.quit(), sys.exit()
-			elif event.type == pygame.KEYDOWN:
-				if event.key == pygame.K_q:
-					pygame.display.quit()
-					pygame.quit(), sys.exit()
-
-				if event.key == pygame.K_ESCAPE:
-					game_state = "playing"
-				if event.key == pygame.K_t:
-					# mode = Tasten
-					setting.change_setting("mode", "Tasten")
-					mode = "Tasten"
-				elif event.key == pygame.K_m:
-					# mode = Maus
-					setting.change_setting("mode", "Maus")
-					mode = "Maus"
 
 		screen.fill(BACKGROUND)
+		game.draw_tiles()
+		show_statistics()
 		
-		txt = font.render("T für steuerung mit Tasten", True, (0, 0, 0))
-		screen.blit(txt, [10, 50])
+	elif game_state == "paused":
+		screen.fill(BACKGROUND)
+		game.draw_tiles()
+		pause_screen()
 
-		txt = font.render("M für steuerung mit Maus", True, (0, 0, 0))
-		screen.blit(txt, [10, 90])
-
-		txt = font_L.render("Pause", True, (0, 0, 0))
-		screen.blit(txt, [50, 260])
-
-		txt = font_L.render("Steuerung: " + mode, True, (0, 0, 0))
-		screen.blit(txt, [50, 320])
+	show_player_score()
 
 	pygame.display.flip()
 	clock.tick(fps)

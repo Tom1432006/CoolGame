@@ -1,5 +1,12 @@
 {
     "Max_Geschwindigkeit": 10,
-    "Highscore": 167,
-    "mode": "Maus"
+    "Highscore": 7,
+    "mode": "Maus",
+    "Leaderboard": [
+        0,
+        0,
+        0,
+        0,
+        0
+    ]
 }

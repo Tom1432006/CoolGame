@@ -192,6 +192,16 @@ class Settings():
 			json.dump(json_data, f, indent=4)
 			f.truncate()
 		return True
+	
+	def update_leaderboard(self, new_score):
+		leaderboard = settings["Leaderboard"]
+		leaderboard.append(new_score)
+		leaderboard.sort(reverse = True)
+
+		new_leaderboard = [0, 0, 0, 0, 0]
+		for i in range(0, 5):
+			new_leaderboard[i] = leaderboard[i]
+		self.change_setting("Leaderboard", new_leaderboard)
 
 class PowerUp():
 	name = ""
@@ -230,8 +240,9 @@ screen = pygame.display.set_mode([screen_width, screen_height])
 icon = pygame.image.load("cool_game_icon.ico")
 pygame.display.set_icon(icon)
 
-font_L = pygame.font.SysFont('Arial', 50, True, False)
+font_s = pygame.font.SysFont('Arial', 25, True, False)
 font = pygame.font.SysFont('Arial', 30, True, False)
+font_L = pygame.font.SysFont('Arial', 50, True, False)
 #endregion
 
 speed = 4
@@ -272,6 +283,8 @@ def end_game():
 	global tiles
 	tiles = 0
 	game_state = "lost"
+	
+	leaderboard = settings['Leaderboard']
 
 	if player.score >= Highscore:
 		Highscore_scored = True
@@ -281,6 +294,10 @@ def end_game():
 		audio.play(random.choice(audio.winning))
 		# write new highscore in json file
 		setting.change_setting("Highscore", player.score)
+		setting.update_leaderboard(player.score)
+	elif leaderboard[4] < player.score:
+		setting.update_leaderboard(player.score)
+				
 
 game.draw_new_tile()
 
@@ -322,6 +339,7 @@ while running:
 			# up speed
 			speed += speed_increment
 			if speed > max_speed:
+				# slowly increase spped
 				speed = math.log(tiles+1)*1.5+5
 
 		if game.update_tiles() == False:
@@ -371,6 +389,14 @@ while running:
 			txt = font.render("Highscore: " + str(Highscore), True, (0, 0, 0))
 			screen.blit(txt, [50, 260])
 		
+		
+		txt = font.render("Leaderboard:", True, (0, 0, 0))
+		screen.blit(txt, [50, 420])
+		
+		leaderboard = settings['Leaderboard']
+		for i in range(0, 5):
+			txt = font_s.render(str(i) + ": " + str(leaderboard[i]), True, (0,0,0))
+			screen.blit(txt, [50, 450+(i*20)])
 		#endregion
 
 	elif game_state == "paused":
